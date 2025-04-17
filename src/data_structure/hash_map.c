@@ -3,11 +3,22 @@
 
 #include <stdlib.h>
 #include <memory.h>
+#include <assert.h>
 
-const usize START_LEN = 16;
-const usize GROWTH_FACTOR = 2;
+const f32 LOAD_FACTOR = 0.7f;
+const usize PRIME_CAPACITIES[] = {
+    17, 37, 67, 131, 257, 521, 1031, 2053, 4099, 8209,
+    16411, 32771, 65537, 131101, 262147, 524309, 1048583, 
+    2097169, 4194301, 8388617, 16777259, 33554467, 67108879,
+};
 
-usize hash(const u8* key, usize len) {
+typedef struct {
+    void* key;
+    void* val;
+    bool is_deleted;
+} HashMapEntry;
+
+usize hash1(const void* key, usize len) {
     const u8 *data = (const u8*)key;
     u32 h = 0x811c9dc5; 
     const u32 c1 = 0xcc9e2d51;
@@ -15,7 +26,8 @@ usize hash(const u8* key, usize len) {
 
     const usize nblocks = len / 4;
     for (usize i = 0; i < nblocks; i++) {
-        u32 k = *((u32*)data);
+        u32 k;
+        memcpy(&k, data, sizeof(u32));
         data += 4;
 
         k *= c1;
@@ -30,7 +42,7 @@ usize hash(const u8* key, usize len) {
     const usize tail_size = len & 3;
     u32 k1 = 0;
     if (tail_size > 0) {
-        for (usize i = 0; i < tail_size; ++i) {
+        for (usize i = 0; i < tail_size; i++) {
             k1 ^= data[i] << (i * 8);
         }
 
@@ -50,38 +62,51 @@ usize hash(const u8* key, usize len) {
     return h;
 }
 
+usize hash2(HashMap* hmap, const void* key, usize len) {
+    usize h1 = hash1(key, len);
+
+    return 1 + (h1 % (hmap->capacity - 1));
+}
+
 void hmap_init(HashMap* hmap, usize key_size, usize val_size) {
     hmap->len = 0;
-    hmap->capacity = START_LEN;
+    hmap->capacity = PRIME_CAPACITIES[0];
+    hmap->prime_idx = 0;
     hmap->key_size = key_size;
     hmap->val_size = val_size;
 
-    hmap->table = (HashMapEntry*)malloc(sizeof(HashMapEntry) * hmap->capacity);
-    for (usize i = 0; i < hmap->capacity; ++i) {
-        hmap->table[i].key = NULL;
-        hmap->table[i].val = NULL;
+    hmap->table = (HashMapEntry*) malloc(sizeof(HashMapEntry) * hmap->capacity);
+    HashMapEntry* table = hmap->table;
+    for (usize i = 0; i < hmap->capacity; i++) {
+        table[i].key = NULL;
+        table[i].val = NULL;
+        table[i].is_deleted = false;
     }
 }
 
 void resize(HashMap* hmap) {
-    usize old_capacity = hmap->capacity;
-    HashMapEntry* old_table = (HashMapEntry*)malloc(sizeof(HashMapEntry) * old_capacity);
-    memcpy(old_table, hmap->table, sizeof(HashMapEntry) * old_capacity);
+    const usize old_capacity = hmap->capacity; 
+    hmap->prime_idx++;
+    hmap->capacity = PRIME_CAPACITIES[hmap->prime_idx];
+
+    HashMapEntry* old_table = (HashMapEntry*) malloc(sizeof(HashMapEntry) * old_capacity);
+    memcpy(old_table, hmap->table, sizeof(HashMapEntry) * old_capacity); 
     
-    hmap->capacity *= GROWTH_FACTOR;
-    hmap->table = (HashMapEntry*)realloc(hmap->table, sizeof(HashMapEntry) * hmap->capacity);
-    
-    for (usize i = 0; i < hmap->capacity; i++) {
-        hmap->table[i].key = NULL;
-        hmap->table[i].val = NULL;
+    free(hmap->table);
+    hmap->table = malloc(sizeof(HashMapEntry) * hmap->capacity); 
+    HashMapEntry* table = hmap->table;
+
+    for (usize i = 0; i < hmap->capacity; i++) { 
+        table[i].key = NULL;
+        table[i].val = NULL;
+        table[i].is_deleted = false;
     }
     
-    // Reset length, re-adding
+    // Rehash and re-add entries
     hmap->len = 0;
     for (usize i = 0; i < old_capacity; i++) {
-        if (old_table[i].key != NULL) {
+        if (old_table[i].key != NULL && !old_table[i].is_deleted) {
             hmap_put(hmap, old_table[i].key, old_table[i].val);
-            
             free(old_table[i].key);
             free(old_table[i].val);
         }
@@ -91,52 +116,104 @@ void resize(HashMap* hmap) {
 }
 
 void hmap_put(HashMap* hmap, const void* key, const void* val) {
-    if (hmap->len >= hmap->capacity) {
+    if (hmap->len >= (hmap->capacity * LOAD_FACTOR)) {
         resize(hmap);
     }
 
-    usize idx = hash(key, hmap->key_size) % hmap->capacity;
-    
-    while (hmap->table[idx].key != NULL) {
-        if (memcmp(hmap->table[idx].key, key, hmap->key_size) == 0) {
-            free(hmap->table[idx].val);
-            hmap->table[idx].val = malloc(hmap->val_size);
-            memcpy(hmap->table[idx].val, val, hmap->val_size);
+    usize h1 = hash1(key, hmap->key_size) % hmap->capacity;
+    usize h2 = hash2(hmap, key, hmap->key_size);
+
+    HashMapEntry* table = hmap->table;
+
+    for (usize i = 0; i < hmap->capacity; i++) {
+        usize idx = (h1 + i * h2) % hmap->capacity;
+
+        if (table[idx].key == NULL) {
+            table[idx].key = malloc(hmap->key_size);
+            memcpy(table[idx].key, key, hmap->key_size);
+            table[idx].val = malloc(hmap->val_size);
+            memcpy(table[idx].val, val, hmap->val_size);
+            hmap->len++;
+            return;
+        } else if (memcmp(table[idx].key, key, hmap->key_size) == 0) {
+            free(table[idx].val);
+            table[idx].val = malloc(hmap->val_size);
+            memcpy(table[idx].val, val, hmap->val_size);
             return;
         }
-        idx = (idx + 1) % hmap->capacity;
     }
-    
-    hmap->table[idx].key = malloc(hmap->key_size);
-    memcpy(hmap->table[idx].key, key, hmap->key_size);
-    hmap->table[idx].val = malloc(hmap->val_size);
-    memcpy(hmap->table[idx].val, val, hmap->val_size);
 
-    hmap->len++;
+    assert(false && "Error: HashMap is full, memory allocation probably failed"); 
+}
+
+void hmap_remove(HashMap* hmap, const void* key) {
+    usize h1 = hash1(key, hmap->key_size) % hmap->capacity;
+    usize h2 = hash2(hmap, key, hmap->key_size);
+    HashMapEntry* table = hmap->table;
+
+    for (usize i = 0; i < hmap->capacity; i++) {
+        usize idx = (h1 + i * h2) % hmap->capacity;
+        if (table[idx].key != NULL && !table[idx].is_deleted &&
+                memcmp(table[idx].key, key, hmap->key_size) == 0) {
+            free(table[idx].key);
+            free(table[idx].val);
+            table[idx].key = NULL;
+            table[idx].val = NULL;
+            table[idx].is_deleted = true;
+            hmap->len--;
+            return;
+        }
+    }        
+
 }
 
 void* hmap_get(HashMap* hmap, const void* key) {
-    usize idx = hash(key, hmap->key_size) % hmap->capacity;
-   
-    while (hmap->table[idx].key != NULL) {
-        if (memcmp(hmap->table[idx].key, key, hmap->key_size) == 0) {
-            return hmap->table[idx].val;
+    usize h1 = hash1(key, hmap->key_size) % hmap->capacity;
+    usize h2 = hash2(hmap, key, hmap->key_size);
+    HashMapEntry* table = hmap->table;
+  
+    for (usize i = 0; i < hmap->capacity; i++) {
+        usize idx = (h1 + i * h2) % hmap->capacity;
+        if (table[idx].key != NULL && !table[idx].is_deleted && memcmp(table[idx].key, key, hmap->key_size) == 0) {
+            return table[idx].val;
         }
-        idx = (idx + 1) % hmap->capacity;
+
     }
     
     return NULL;
 }
 
+bool hmap_contains(HashMap* hmap, const void* key) {
+    usize h1 = hash1(key, hmap->key_size) % hmap->capacity;
+    usize h2 = hash2(hmap, key, hmap->key_size);
+    HashMapEntry* table = hmap->table;
+    
+    for (usize i = 0; i < hmap->capacity; i++) {
+        usize idx = (h1 + i * h2) % hmap->capacity;
+        if (table[idx].key == NULL && !table[idx].is_deleted) { 
+            return false;
+        } else if (table[idx].key != NULL && memcmp(table[idx].key, key, hmap->key_size) == 0 && !table[idx].is_deleted) {
+            return true; 
+        }
+    }
+    
+    return false;
+}
+
 void hmap_free(HashMap* hmap) {
-    for (usize i = 0; i < hmap->capacity; ++i) {
-        if (hmap->table[i].key != NULL) {
-            free(hmap->table[i].key);
-            free(hmap->table[i].val);
+    HashMapEntry* table = hmap->table;
+
+    for (usize i = 0; i < hmap->capacity; i++) {
+        if (table[i].key != NULL) {
+            free(table[i].key);
+            free(table[i].val);
         }
     }
     free(hmap->table);
     hmap->table = NULL;
     hmap->capacity = 0;
+    hmap->key_size = 0;
+    hmap->val_size = 0;
+    hmap->prime_idx = 0;
     hmap->len = 0;
 }

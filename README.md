@@ -18,7 +18,7 @@ Use shorter more concise names for common C types.
 
 ### Data structures
 - `Dynamic array`: A dynamic array that can grow and shrink in size.
-- `Hash map`: A hash map that uses linear probing for collision resolution and Murmur3 for hashing.
+- `Hash map`: A hash map that uses murmur3, open addressing (double hashing) and tombstone deletion.
 
 ## Building
 
