@@ -6,17 +6,36 @@ set(CMAKE_C_STANDARD_REQUIRED YES)
 set(CMAKE_C_EXTENSIONS NO)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+    
+include(GNUInstallDirs) 
 
 file(GLOB HTD_SOURCES
     src/data_structure/*.c
 )
 
 add_library(htd STATIC ${HTD_SOURCES})
-
 target_include_directories(htd PUBLIC
     ${PROJECT_SOURCE_DIR}/include
 )
 target_compile_options(htd PRIVATE -Wall -Wextra -Werror)
+
+install(TARGETS htd
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+install(DIRECTORY include/
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/htd
+    FILES_MATCHING PATTERN "*.h"
+)
+
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake_uninstall.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake"
+    IMMEDIATE @ONLY
+)
+add_custom_target(uninstall
+    COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake
+)
 
 set(CMAKE_CTEST_VERBOSE TRUE)
 enable_testing()
