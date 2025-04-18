@@ -11,6 +11,8 @@ typedef struct {
     usize prime_idx;
     usize key_size;
     usize val_size;
+
+    usize tombstone_count;
 } HashMap;
 
 void hmap_init(HashMap* hmap, usize key_size, usize val_size);

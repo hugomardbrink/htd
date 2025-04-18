@@ -17,7 +17,10 @@ add_library(htd STATIC ${HTD_SOURCES})
 target_include_directories(htd PUBLIC
     ${PROJECT_SOURCE_DIR}/include
 )
-target_compile_options(htd PRIVATE -Wall -Wextra -Werror)
+target_compile_options(htd PRIVATE -Wall -Wextra -Werror -pedantic)
+
+#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -fsanitize=address")
+#set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address")
 
 install(TARGETS htd
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
