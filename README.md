@@ -19,6 +19,7 @@ Use shorter more concise names for common C types.
 ### Data structures
 - `Dynamic array`: A dynamic array that can grow and shrink in size.
 - `Hash map`: A hash map that uses murmur3, open addressing (double hashing) and tombstone deletion.
+- `Priority queue`: A priority queue that uses a binary heap, custom comparator.
 
 ## Building
 
