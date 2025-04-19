@@ -26,6 +26,11 @@ void dynarr_remove(DynamicArray* arr, usize idx) {
     void* data = dynarr_at(arr, idx);
     memmove(data, &((u8*)arr->data)[arr->data_size * (idx + 1)], (arr->len - idx - 1) * arr->data_size);
     arr->len--;
+
+    if (arr->len < arr->capacity / GROWTH_FACTOR) {
+        arr->capacity /= GROWTH_FACTOR;
+        arr->data = (void*)realloc(arr->data, arr->capacity * arr->data_size);
+    }
 }
 
 void dynarr_push(DynamicArray* arr, void* data) {
