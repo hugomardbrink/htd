@@ -1,5 +1,24 @@
 # Personal library for C
 
+## Installation
+This library can easily be installed using CMake and FetchContent.
+Add this to your CMakeLists.txt file:
+
+```cmake
+include(FetchContent)
+
+FetchContent_Declare(
+  htd
+  GIT_REPOSITORY https://github.com/hugomardbrink/htd.git
+  GIT_TAG main 
+)
+
+FetchContent_MakeAvailable(htd)
+
+add_executable(myapp main.c)
+target_link_libraries(myapp PRIVATE htd::htd)
+```
+
 ## Features
 ### Primitives
 Use shorter more concise names for common C types.
@@ -37,14 +56,14 @@ cd build
 ctest
 ```
 
-## Installing
+## Local install
 
 ```bash
 cd build
 make install
 ```
 
-## Uninstalling
+## Local uninstall
 
 ```bash
 cd build

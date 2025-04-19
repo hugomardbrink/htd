@@ -6,26 +6,35 @@ set(CMAKE_C_STANDARD_REQUIRED YES)
 set(CMAKE_C_EXTENSIONS NO)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-    
-include(GNUInstallDirs) 
+
+include(GNUInstallDirs)
 
 file(GLOB HTD_SOURCES
     src/data_structure/*.c
 )
 
 add_library(htd STATIC ${HTD_SOURCES})
+add_library(htd::htd ALIAS htd) 
+
 target_include_directories(htd PUBLIC
-    ${PROJECT_SOURCE_DIR}/include
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include/htd>
 )
+
 target_compile_options(htd PRIVATE -Wall -Wextra -Werror -pedantic)
 
-#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -fsanitize=address")
-#set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address")
-
 install(TARGETS htd
+    EXPORT htdTargets
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
+
+install(EXPORT htdTargets
+    FILE htdTargets.cmake
+    NAMESPACE htd::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/htd
+)
+
 install(DIRECTORY include/
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/htd
     FILES_MATCHING PATTERN "*.h"
