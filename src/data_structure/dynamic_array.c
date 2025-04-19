@@ -18,6 +18,10 @@ void* dynarr_at(DynamicArray* arr, usize idx) {
     return &((u8*)arr->data)[arr->data_size * idx];
 }
 
+void dynarr_set(DynamicArray* arr, usize idx, void* data) {
+    memcpy(&((u8*)arr->data)[arr->data_size * idx], data, arr->data_size);
+}
+
 void* dynarr_last(DynamicArray* arr) {
     return &((u8*)arr->data)[arr->data_size * (arr->len - 1)];
 }
