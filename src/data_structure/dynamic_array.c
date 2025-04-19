@@ -22,6 +22,14 @@ void dynarr_set(DynamicArray* arr, usize idx, void* data) {
     memcpy(&((u8*)arr->data)[arr->data_size * idx], data, arr->data_size);
 }
 
+void dynarr_copy(DynamicArray* src, DynamicArray* dst) {
+    dst->data_size = src->data_size;
+    dst->len = src->len;
+    dst->capacity = src->capacity;
+    dst->data = (void*)malloc(dst->capacity * dst->data_size);
+    memcpy(dst->data, src->data, dst->len * dst->data_size);
+}
+
 void* dynarr_last(DynamicArray* arr) {
     return &((u8*)arr->data)[arr->data_size * (arr->len - 1)];
 }

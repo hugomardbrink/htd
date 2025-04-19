@@ -17,6 +17,8 @@ void* dynarr_at(DynamicArray* arr, usize idx);
 
 void dynarr_set(DynamicArray* arr, usize idx, void* data);
 
+void dynarr_copy(DynamicArray* src, DynamicArray* dst);
+
 void dynarr_push(DynamicArray* arr, void* data);
 
 void dynarr_free(DynamicArray* arr);
