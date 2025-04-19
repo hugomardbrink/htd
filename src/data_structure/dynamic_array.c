@@ -18,6 +18,16 @@ void* dynarr_at(DynamicArray* arr, usize idx) {
     return &((u8*)arr->data)[arr->data_size * idx];
 }
 
+void* dynarr_last(DynamicArray* arr) {
+    return &((u8*)arr->data)[arr->data_size * (arr->len - 1)];
+}
+
+void dynarr_remove(DynamicArray* arr, usize idx) {
+    void* data = dynarr_at(arr, idx);
+    memmove(data, &((u8*)arr->data)[arr->data_size * (idx + 1)], (arr->len - idx - 1) * arr->data_size);
+    arr->len--;
+}
+
 void dynarr_push(DynamicArray* arr, void* data) {
     if (arr->len >= arr->capacity) {
         arr->capacity *= GROWTH_FACTOR;
@@ -26,6 +36,15 @@ void dynarr_push(DynamicArray* arr, void* data) {
     
     memcpy(&((u8*)arr->data)[arr->data_size * arr->len], data, arr->data_size);
     arr->len++;
+}
+
+void* dynarr_pop(DynamicArray* arr) {
+    if (arr->len == 0) {
+        return NULL;
+    }
+    
+    arr->len--;
+    return dynarr_last(arr);
 }
 
 void dynarr_free(DynamicArray* arr) {

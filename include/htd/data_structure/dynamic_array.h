@@ -19,4 +19,10 @@ void dynarr_push(DynamicArray* arr, void* data);
 
 void dynarr_free(DynamicArray* arr);
 
+void* dynarr_last(DynamicArray* arr);
+
+void dynarr_remove(DynamicArray* arr, usize idx);
+
+void* dynarr_pop(DynamicArray* arr);
+
 #endif // DYNAMIC_ARRAY_H
